@@ -4,6 +4,7 @@
       <NuxtLink to="/" class="text-xl font-black tracking-tight text-primary">TalentHub <span class="text-base-content">GTO</span></NuxtLink>
       <div class="flex flex-wrap items-center gap-2 text-sm">
         <NuxtLink to="/" class="btn btn-ghost btn-sm">Vacantes</NuxtLink>
+        <NuxtLink v-if="auth.profile?.role === 'STUDENT'" to="/applications" class="btn btn-ghost btn-sm">Mis postulaciones</NuxtLink>
         <NuxtLink v-if="auth.profile?.role === 'COMPANY'" to="/company" class="btn btn-ghost btn-sm">Mi empresa</NuxtLink>
         <template v-if="auth.user">
           <span class="hidden text-xs opacity-65 sm:inline">{{ auth.profile?.name || auth.user.email }}</span>

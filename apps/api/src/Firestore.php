@@ -100,10 +100,14 @@ final class Firestore
     public function update(string $collection, string $id, array $data, string $token): array
     {
         Validator::documentId($id);
-        $query = http_build_query([
-            'updateMask' => ['fieldPaths' => array_keys($data)],
-            'currentDocument' => ['exists' => 'true'],
-        ], '', '&', PHP_QUERY_RFC3986);
-        return self::document(Remote::request('PATCH', $this->base . '/' . $collection . '/' . $id . '?' . $query, ['fields' => self::fields($data)], $token));
+
+        $queryParts = [];
+        foreach (array_keys($data) as $field) {
+            $queryParts[] = 'updateMask.fieldPaths=' . rawurlencode((string)$field);
+        }
+        $queryParts[] = 'currentDocument.exists=true';
+        $queryString = implode('&', $queryParts);
+
+        return self::document(Remote::request('PATCH', $this->base . '/' . $collection . '/' . $id . '?' . $queryString, ['fields' => self::fields($data)], $token));
     }
 }

@@ -84,6 +84,44 @@ final class Application
                 if (!$changes) throw new ApiException('No hay campos para actualizar.', 422);
                 Http::json(['data' => $db->update('jobs', $part[1], $changes, (string) $token)]);
             }
+            if ($method === 'POST' && $part === ['applications']) {
+                $profile = Auth::role((string) $token, 'STUDENT');
+                $body = Http::body();
+                $jobId = Validator::documentId(Validator::text($body, 'jobId', 160, 8));
+                $job = $db->get('jobs', $jobId, $token);
+                if (!$job || $job['status'] !== 'OPEN') throw new ApiException('La vacante no está disponible.', 422);
+                $now = gmdate('c');
+                $document = [
+                    'jobId' => $jobId,
+                    'studentId' => $profile['uid'],
+                    'studentName' => $profile['name'],
+                    'studentEmail' => $profile['email'],
+                    'companyId' => $job['ownerId'],
+                    'jobTitle' => $job['title'],
+                    'status' => 'SUBMITTED',
+                    'createdAt' => $now,
+                    'updatedAt' => $now,
+                ];
+                Http::json(['data' => $db->create('applications', $jobId . '_' . $profile['uid'], $document, (string) $token)], 201);
+            }
+            if ($method === 'GET' && $part === ['applications', 'mine']) {
+                $profile = Auth::role((string) $token, 'STUDENT');
+                Http::json(['data' => $db->query('applications', 'studentId', $profile['uid'], $token)]);
+            }
+            if ($method === 'GET' && count($part) === 3 && $part[0] === 'jobs' && $part[2] === 'applications') {
+                $profile = Auth::role((string) $token, 'COMPANY');
+                $job = $db->get('jobs', $part[1], $token);
+                if (!$job || $job['ownerId'] !== $profile['uid']) throw new ApiException('Sin acceso a esta vacante.', 403);
+                $candidates = $db->query('applications', 'companyId', (string) $profile['uid'], $token);
+                Http::json(['data' => array_values(array_filter($candidates, static fn(array $item): bool => ($item['jobId'] ?? '') === $part[1]))]);
+            }
+            if ($method === 'PATCH' && count($part) === 2 && $part[0] === 'applications') {
+                $profile = Auth::role((string) $token, 'COMPANY');
+                $record = $db->get('applications', $part[1], $token);
+                if (!$record || $record['companyId'] !== $profile['uid']) throw new ApiException('Sin acceso a esta postulación.', 403);
+                $status = Validator::oneOf(Http::body(), 'status', ['REVIEWING', 'ACCEPTED', 'REJECTED']);
+                Http::json(['data' => $db->update('applications', $part[1], ['status' => $status, 'updatedAt' => gmdate('c')], (string) $token)]);
+            }
             throw new ApiException('Ruta no encontrada.', 404);
         } catch (ApiException $e) {
             Http::json(['error' => $e->getMessage()], $e->httpStatus);
