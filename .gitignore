@@ -7,3 +7,5 @@ apps/api/config/local.php
 coverage/
 *.log
 *.zip
+
+apps/api/config/local.php
